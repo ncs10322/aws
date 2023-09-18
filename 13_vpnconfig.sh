@@ -37,6 +37,8 @@ printf "====== VPN 서비스를 시작합니다. ======\n"
 printf "======================================\n"
 
 systemctl enable --now ipsec.service
+systemctl restart ipsec.service
+systemctl restart network
 
 printf "cat /etc/ipsec.d/aws.conf 를 실시하여 설정된 내용을 확인하세요.\n"
 printf "cat /etc/ipsec.d/aws.secrets 를 실시하여 Pre-Shared 키를 확인하세요.\n"
