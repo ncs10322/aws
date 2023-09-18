@@ -29,7 +29,7 @@ conn Tunnel1
 EOF
 
 cat <<EOF> /etc/ipsec.d/aws.secrets
-$IP_ADDRESS_1 $IP_ADDRESS_2 : PSK "aws1234"
+$IP_ADDRESS_1 $IP_ADDRESS_2 : PSK "aws12345"
 EOF
 
 printf "======================================\n"
