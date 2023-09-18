@@ -17,8 +17,8 @@ conn Tunnel1
   type=tunnel
   ikelifetime=8h
   keylife=1h
-  phase2alg=aes128-sha1;modp1024
-  ike=aes128-sha1;modp1024
+  phase2alg=aes_gcm
+  ike=aes256-sha2_256;dh14
   keyingtries=%forever
   keyexchange=ike
   leftsubnet=10.0.0.0/16
