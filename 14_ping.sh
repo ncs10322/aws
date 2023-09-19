@@ -2,7 +2,7 @@
 echo "=================================="
 echo "========= EC2 Ping Test =========="
 echo "=================================="
-cat /home/ec2-user/EC2_list.txt | while read IP_ADDRESS
+cat EC2_list.txt | while read IP_ADDRESS
 do
     ping -c 1 -W 1 "$IP_ADDRESS" > /dev/null
     if [ $? -eq 0 ]; then
