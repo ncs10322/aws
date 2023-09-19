@@ -1,5 +1,7 @@
 #!/bin/bash
-date
+echo "=================================="
+echo "========= EC2 Ping Test =========="
+echo "=================================="
 cat EC2_list.txt | while read output
 do
     ping -c 1 -W 1 "$output" > /dev/null
