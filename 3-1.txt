@@ -1,0 +1,2 @@
+wget -q -O aws_sample.jpg \
+https://blog.kakaocdn.net/dn/tA4ub/btsteRAiZwP/jfrQvHzPVtCRCrsSc0G1w1/img.jpg

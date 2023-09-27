@@ -1,0 +1,228 @@
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instances. Linked to AWS Parameter
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  LatestAmiId:
+    Description: (DO NOT CHANGE)
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+    AllowedValues:
+      - /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+Resources:
+  MyVPC14:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value: MyVPC14
+
+  MyVPC15:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 20.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value: MyVPC15
+
+  MyIGW1:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: MyIGW1
+
+  MyIGW2:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: MyIGW2
+
+  MyIGW1attachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref MyIGW1
+      VpcId: !Ref MyVPC14
+
+  MyIGW2attachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref MyIGW2
+      VpcId: !Ref MyVPC15
+
+  MyPublicRouting1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC14
+      Tags:
+        - Key: Name
+          Value: MyPublicRouting1
+
+  MyPublicDefault1:
+    Type: AWS::EC2::Route
+    DependsOn: MyIGW1attachment
+    Properties:
+      RouteTableId: !Ref MyPublicRouting1
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref MyIGW1
+
+  MyPublicRouting2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC15
+      Tags:
+        - Key: Name
+          Value: MyPublicRouting2
+
+  MyPublicDefault2:
+    Type: AWS::EC2::Route
+    DependsOn: MyIGW2attachment
+    Properties:
+      RouteTableId: !Ref MyPublicRouting2
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref MyIGW2
+
+  MyPublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC14
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+      CidrBlock: 10.0.0.0/24
+      Tags:
+        - Key: Name
+          Value: MyPublicSubnet1
+
+  MyPublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC15
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+      CidrBlock: 20.0.0.0/24
+      Tags:
+        - Key: Name
+          Value: MyPublicSubnet2
+
+  MyPublicSubnet1RoutingAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref MyPublicRouting1
+      SubnetId: !Ref MyPublicSubnet1
+
+  MyPublicSubnet2RoutingAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref MyPublicRouting2
+      SubnetId: !Ref MyPublicSubnet2
+
+  MyWeb1:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: t3.micro
+      KeyName: !Ref KeyName
+      Tags:
+        - Key: Name
+          Value: MyWeb1
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          SubnetId: !Ref MyPublicSubnet1
+          GroupSet:
+          - !Ref MyPublicSecugroup1
+          AssociatePublicIpAddress: true
+          PrivateIpAddress: 10.0.0.101
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            hostnamectl --static set-hostname MyWeb1
+            echo "toor1234." | passwd --stdin root
+            sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+            sed -i 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/g' /etc/ssh/sshd_config
+            service sshd restart
+            yum -y install httpd
+            echo "<h1>MyWeb1 test page</h1>" > /var/www/html/index.html
+            systemctl enable --now httpd
+
+
+  MyWeb2:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: t3.micro
+      KeyName: !Ref KeyName
+      Tags:
+        - Key: Name
+          Value: MyWeb2
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          SubnetId: !Ref MyPublicSubnet2
+          GroupSet:
+          - !Ref MyPublicSecugroup2
+          AssociatePublicIpAddress: true
+          PrivateIpAddress: 20.0.0.101
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            hostnamectl --static set-hostname MyWeb1
+            echo "toor1234." | passwd --stdin root
+            sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+            sed -i 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/g' /etc/ssh/sshd_config
+            service sshd restart
+            yum -y install httpd
+            echo "<h1>MyWeb2 test page</h1>" > /var/www/html/index.html
+            systemctl enable --now httpd
+
+
+  MyPublicSecugroup1:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref MyVPC14
+      GroupDescription: Permit HTTP(80), SSH(22) and ICMP
+      Tags:
+      - Key : Name
+        Value : MyPublicSecugroup1
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '80'
+        ToPort: '80'
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: icmp
+        FromPort: -1
+        ToPort: -1
+        CidrIp: 0.0.0.0/0
+
+  MyPublicSecugroup2:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref MyVPC15
+      GroupDescription: Permit HTTP(80), SSH(22) and ICMP
+      Tags:
+      - Key : Name
+        Value : MyPublicSecugroup2
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '80'
+        ToPort: '80'
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: icmp
+        FromPort: -1
+        ToPort: -1
+        CidrIp: 0.0.0.0/0

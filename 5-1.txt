@@ -1,0 +1,4 @@
+#!/bin/bash
+yum -y install httpd
+echo "<h1>myprivate-webserver-1 web page</h1>" > /var/www/html/index.html
+systemctl enable --now httpd

@@ -1,0 +1,12 @@
+<?php
+$servername = "RDS 엔드포인트 DNS 이름";
+$username = "dbadmin";
+$password = "toor1234.";
+
+$conn = new mysqli($servername, $username, $password);
+
+if ($conn->connect_error) {
+  die("Mariadb connection failed: " . $conn->connect_error);
+}
+echo "Mariadb connection was successful.";
+?>

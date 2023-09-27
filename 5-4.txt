@@ -1,0 +1,24 @@
+<?php
+$servername = "RDS 엔드포인트 DNS 이름";
+$username = "dbadmin";
+$password = "toor1234.";
+$dbname = "testdb";
+
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+if ($conn->connect_error) {
+  die("Mariadb connection failed: " . $conn->connect_error);
+}
+
+$sql = "select id, name, password from users";
+$result = $conn->query($sql);
+
+if ($result->num_rows > 0) {
+  while($row = $result->fetch_assoc()) {
+    echo "id: " . $row["id"]. " - Name: " . $row["name"]. " " . $row["password"]. "<br>";
+  }
+} else {
+  echo "0 results";
+}
+$conn->close();
+?>

@@ -1,0 +1,8 @@
+#!/bin/bash
+yum install -y httpd
+echo "mypublic-ec2instance web page" > /var/www/html/index.html
+systemctl enable --now httpd.service 
+echo "toor1234." | passwd --stdin root 
+sed -i "s/^PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config 
+sed -i "s/^#PermitRootLogin yes/PermitRootLogin yes/g" /etc/ssh/sshd_config
+systemctl restart sshd
