@@ -1,9 +1,0 @@
-#!/bin/bash
-hostnamectl --static set-hostname PrivateMyWeb
-yum install -y httpd
-echo "PrivateMyWeb test page" > /var/www/html/index.html
-systemctl enable --now httpd.service 
-echo "toor1234." | passwd --stdin root 
-sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
-sed -i 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/g' /etc/ssh/sshd_config
-systemctl restart sshd
