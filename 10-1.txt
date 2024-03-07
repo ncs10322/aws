@@ -148,11 +148,8 @@ Resources:
       UserData:
         Fn::Base64:
           !Sub |
-            hostnamectl --static set-hostname PrivateMyWeb
             #!/bin/bash
-            yum install -y httpd
-            echo "PrivateMyWeb test page" > /var/www/html/index.html
-            systemctl enable --now httpd.service 
+            hostnamectl --static set-hostname PrivateMyWeb
             echo "toor1234." | passwd --stdin root 
             sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
             sed -i 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/g' /etc/ssh/sshd_config
