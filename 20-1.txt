@@ -1,0 +1,211 @@
+Parameters:
+  KeyName:
+    Description: EC2 KeyPair
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: EC2 KeyPair
+  LatestAmiId:
+    Description: EC2 AMI 
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+    AllowedValues:
+      - /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+Resources:
+  MyVPC23:
+    Type: AWS::EC2::VPC
+    Properties:
+     CidrBlock: 10.0.0.0/16
+     Tags:
+        - Key: Name
+          Value: MyVPC23
+
+  MyIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: MyIGW
+
+  MyIGWattachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref MyIGW
+      VpcId: !Ref MyVPC23
+
+  MyPublicRouting:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC23
+      Tags:
+        - Key: Name
+          Value: MyPublicRouting
+
+  MyPublicDefault:
+    Type: AWS::EC2::Route
+    DependsOn: MyIGWattachment
+    Properties:
+      RouteTableId: !Ref MyPublicRouting
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref MyIGW
+
+  MyPublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC23
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: 10.0.1.0/24
+      Tags:
+        - Key: Name
+          Value: MyPublicSubnet1
+
+  MyPublicSubnet11:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC23
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      CidrBlock: 10.0.11.0/24
+      Tags:
+        - Key: Name
+          Value: MyPublicSubnet11
+
+  MyPublicSubnet1RoutingAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref MyPublicRouting
+      SubnetId: !Ref MyPublicSubnet1
+
+  MyPublicSubnet11RoutingAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref MyPublicRouting
+      SubnetId: !Ref MyPublicSubnet11
+
+  MyWeb1:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: !Ref LatestAmiId
+      KeyName: !Ref KeyName
+      Tags:
+        - Key: Name
+          Value: MyWeb1
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          SubnetId: !Ref MyPublicSubnet1
+          GroupSet:
+          - !Ref MyPublicSecugroup
+          AssociatePublicIpAddress: true
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            hostnamectl --static set-hostname MyWeb1
+            echo "toor1234." | passwd --stdin root
+            sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+            sed -i 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/g' /etc/ssh/sshd_config
+            service sshd restart
+            yum -y install httpd
+            echo "<h1>MyWeb1 test page</h1>" > /var/www/html/index.html
+            systemctl enable --now httpd
+
+  MyWeb11:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: !Ref LatestAmiId
+      KeyName: !Ref KeyName
+      Tags:
+        - Key: Name
+          Value: MyWeb11
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          SubnetId: !Ref MyPublicSubnet11
+          GroupSet:
+          - !Ref MyPublicSecugroup
+          AssociatePublicIpAddress: true
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            hostnamectl --static set-hostname MyWeb11
+            echo "toor1234." | passwd --stdin root
+            sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+            sed -i 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/g' /etc/ssh/sshd_config
+            service sshd restart
+            yum -y install httpd
+            echo "<h1>MyWeb11 test page</h1>" > /var/www/html/index.html
+            systemctl enable --now httpd
+
+  MyWeb1EIP:
+      Type: AWS::EC2::EIP
+      Properties:
+          Domain: vpc
+
+  MyWeb1EIPassociation:
+      Type: AWS::EC2::EIPAssociation
+      Properties:
+          InstanceId: !Ref MyWeb1
+          AllocationId: !GetAtt MyWeb1EIP.AllocationId
+
+  MyWeb11EIP:
+      Type: AWS::EC2::EIP
+      Properties:
+          Domain: vpc
+
+  MyWeb11EIPassociation:
+      Type: AWS::EC2::EIPAssociation
+      Properties:
+          InstanceId: !Ref MyWeb11
+          AllocationId: !GetAtt MyWeb11EIP.AllocationId
+
+  MyPublicSecugroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Permit HTTP(80) and SSH(22)
+      VpcId: !Ref MyVPC23
+      Tags:
+        - Key: Name
+          Value: MyPublicSecugroup
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '80'
+        ToPort: '80'
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: 0.0.0.0/0
+
+  MyALBtargetgroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: MyALBtargetgroup
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref MyVPC23
+      Targets:
+        - Id: !Ref MyWeb1
+          Port: 80
+        - Id: !Ref MyWeb11
+          Port: 80
+
+  MyALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      Name: MyALB
+      SecurityGroups:
+        - !Ref MyPublicSecugroup
+      Subnets:
+        - !Ref MyPublicSubnet1
+        - !Ref MyPublicSubnet11
+
+  MyALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref MyALBtargetgroup
+      LoadBalancerArn: !Ref MyALB
+      Port: 80
+      Protocol: HTTP
