@@ -22,7 +22,7 @@ conn Tunnel1
   keyingtries=%forever
   keyexchange=ike
   leftsubnet=10.0.0.0/16
-  rightsubnet=20.0.0.0/16
+  rightsubnet=172.16.0.0/16
   dpddelay=10
   dpdtimeout=30
   dpdaction=restart_by_peer
