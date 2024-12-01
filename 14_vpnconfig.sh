@@ -1,6 +1,6 @@
 #!/bin/sh
 printf "===========================================\n"
-printf "환영합니다. libreswan VPN 설정 도우미입니다.\n"
+printf "환영합니다. Openswan VPN 설정 도우미입니다.\n"
 printf "===========================================\n"
 printf "[1단계] MyCGW 고객 게이트웨이 주소(탄력적 IP 주소)를 입력하세요: "
 read IP_ADDRESS_1
