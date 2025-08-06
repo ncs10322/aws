@@ -1,0 +1,26 @@
+provider "aws" {
+  region = "ap-northeast-2"
+}
+
+resource "aws_key_pair" "tf_keypair" {
+  key_name = "tf_keypair"
+  public_key = file("C:\\sshkey\\tf_keypair.pub")
+  tags = {
+    Name = "tf_keypair"
+  }
+}
+
+data "aws_ami" "LatestAmi" {
+  most_recent = true
+  filter {
+    name   = "owner-alias"
+    values = ["amazon"]
+  }
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-ebs"]
+  }
+
+  owners = ["amazon"]
+}
