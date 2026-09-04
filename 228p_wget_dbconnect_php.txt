@@ -1,0 +1,1 @@
+wget http://MyWeb1 프라이빗 IP 주소/dbconnect.php -O /var/www/html/dbconnect.php
