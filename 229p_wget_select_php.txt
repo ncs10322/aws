@@ -1,1 +1,0 @@
-wget http://MyWeb1 프라이빗 IP 주소/select.php -O /var/www/html/select.php
