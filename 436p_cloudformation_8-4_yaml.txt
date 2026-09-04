@@ -1,0 +1,395 @@
+Parameters:
+  KeyName:
+    Description: EC2 KeyPair
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: EC2 KeyPair
+  LatestAmiId:
+    Description: EC2 AMI 
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+    AllowedValues:
+      - /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+Resources:
+  MyVPC08:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+        - Key: Name
+          Value: MyVPC08
+
+  MyIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: MyIGW
+
+  MyIGWattachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref MyIGW
+      VpcId: !Ref MyVPC08
+
+  MyPublic1Subnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: 10.0.1.0/24
+      VpcId: !Ref MyVPC08
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: MyPublic1Subnet
+
+  MyPublic1Routing:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC08
+      Tags:
+        - Key: Name
+          Value: MyPublic1Routing
+
+  MyPublic1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref MyPublic1Routing
+      SubnetId: !Ref MyPublic1Subnet
+
+  MyPublic1Default:
+    DependsOn: MyIGWattachment
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref MyIGW
+      RouteTableId: !Ref MyPublic1Routing
+
+  MyNatGW1EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  MyNatGW1:
+    DependsOn: MyIGWattachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt MyNatGW1EIP.AllocationId
+      SubnetId: !Ref MyPublic1Subnet
+      Tags:
+        - Key: Name
+          Value: MyNatGW1
+
+  MyPrivate1Subnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: 10.0.100.0/24
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref MyVPC08
+      Tags:
+        - Key: Name
+          Value: MyPrivate1Subnet
+
+  MyPrivate1Routing:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC08
+      Tags:
+        - Key: Name
+          Value: MyPrivate1Routing
+
+  MyPrivate1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref MyPrivate1Routing
+      SubnetId: !Ref MyPrivate1Subnet
+
+  MyPrivate1Default:
+    DependsOn: MyNatGW1
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref MyNatGW1
+      RouteTableId: !Ref MyPrivate1Routing
+
+  MyPublic2Subnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      CidrBlock: 10.0.2.0/24
+      VpcId: !Ref MyVPC08
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: MyPublic2Subnet
+
+  MyPublic2Routing:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC08
+      Tags:
+        - Key: Name
+          Value: MyPublic2Routing
+
+  MyPublic2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref MyPublic2Routing
+      SubnetId: !Ref MyPublic2Subnet
+
+  MyPublic2Default:
+    DependsOn: MyIGWattachment
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref MyIGW
+      RouteTableId: !Ref MyPublic2Routing
+
+  MyNatGW2EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  MyNatGW2:
+    DependsOn: MyIGWattachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt MyNatGW2EIP.AllocationId
+      SubnetId: !Ref MyPublic2Subnet
+      Tags:
+        - Key: Name
+          Value: MyNatGW2
+
+  MyPrivate2Subnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      CidrBlock: 10.0.200.0/24
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref MyVPC08
+      Tags:
+        - Key: Name
+          Value: MyPrivate2Subnet
+
+  MyPrivate2Routing:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC08
+      Tags:
+        - Key: Name
+          Value: MyPrivate2Routing
+
+  MyPrivate2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref MyPrivate2Routing
+      SubnetId: !Ref MyPrivate2Subnet
+
+  MyPrivate2Default:
+    DependsOn: MyNatGW2
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref MyNatGW2
+      RouteTableId: !Ref MyPrivate2Routing
+
+  MySecugroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: MySecugroup
+      GroupDescription: Permit http,https,ssh and icmp
+      VpcId: !Ref MyVPC08
+      Tags:
+        - Key: Name
+          Value: MySecugroup
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0         
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+  MyALBtargetgroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: MyALBtargetgroup
+      Port: 80
+      Protocol: HTTP
+      TargetType: instance
+      VpcId: !Ref MyVPC08
+      Tags:
+        - Key: Name
+          Value: MyALBtargetgroup
+
+  MyALB:
+    DependsOn: MyALBtargetgroup
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties: 
+      Type: application
+      Scheme: internet-facing
+      SecurityGroups: 
+        - !Ref MySecugroup
+      Subnets:
+        - !Ref MyPublic1Subnet
+        - !Ref MyPublic2Subnet
+      Tags:
+        - Key: Name
+          Value: MyALB
+
+  MyALBlistener:
+    DependsOn: MyALBtargetgroup
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref MyALB
+      Port: 80
+      Protocol: HTTP
+      DefaultActions: 
+        - Type: forward
+          TargetGroupArn: !Ref MyALBtargetgroup
+
+  MyLaunchTemplate:
+    DependsOn: MySecugroup
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: MyLaunchTemplate
+      LaunchTemplateData:
+        TagSpecifications: 
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: MyLaunchTemplate
+        InstanceType: t3.micro
+        ImageId: !Ref LatestAmiId
+        KeyName: !Ref KeyName
+        NetworkInterfaces: 
+          - DeviceIndex: 0
+            AssociatePublicIpAddress: false
+            Groups: 
+              - !Ref MySecugroup
+        UserData:
+          Fn::Base64:
+            !Sub |
+              #!/bin/bash
+              export INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+              echo "toor1234." | passwd --stdin root 
+              sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+              sed -i 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/g' /etc/ssh/sshd_config
+              systemctl restart sshd
+              yum install -y httpd
+              echo "<h1><p style="color:red">$INSTANCE_ID Web Page</p></h1>" > /var/www/html/index.html
+              systemctl enable --now httpd.service
+
+  MyAutoScalingGroup:
+    DependsOn:
+      - MyLaunchTemplate
+      - MyNatGW1
+      - MyNatGW2
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: MyAutoScalingGroup
+      VPCZoneIdentifier: 
+        - !Ref MyPrivate1Subnet
+        - !Ref MyPrivate2Subnet
+      LaunchTemplate: 
+        LaunchTemplateId: !Ref MyLaunchTemplate 
+        Version: !GetAtt MyLaunchTemplate.LatestVersionNumber
+      TargetGroupARNs:
+        - !Ref MyALBtargetgroup
+      DesiredCapacity: 4
+      MaxSize: 6
+      MinSize: 4
+      Tags:
+        - Key: Name
+          Value: MyAutoScalingGroup
+          PropagateAtLaunch: true
+
+  MyDBSecugroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: MyDBSecugroup
+      GroupDescription: Permit MySQL
+      VpcId: !Ref MyVPC08
+      Tags:
+        - Key: Name
+          Value: MyDBSecugroup
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 0.0.0.0/0
+
+  MyDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: MyDBSubnetGroup
+      DBSubnetGroupName: mydbsubnetgroup
+      SubnetIds: 
+        - !Ref MyPrivate1Subnet
+        - !Ref MyPrivate2Subnet   
+      Tags:
+        - Key: Name
+          Value: MyDBSubnetGroup
+
+  MyDBCluster:
+    DependsOn:
+      - MyDBSecugroup
+      - MyDBSubnetGroup
+    DeletionPolicy: Delete
+    Type: AWS::RDS::DBCluster
+    Properties:
+      DBClusterIdentifier: mydb
+      EngineMode: provisioned
+      Engine: aurora-mysql
+      EngineVersion: 8.0.mysql_aurora.3.10.3
+      DBSubnetGroupName: !Ref MyDBSubnetGroup
+      VpcSecurityGroupIds: 
+        - !Ref MyDBSecugroup
+      AvailabilityZones: 
+        - ap-northeast-2a
+        - ap-northeast-2c
+      DatabaseName: testdb
+      MasterUsername: dbadmin
+      MasterUserPassword: toor1234.
+      Tags:
+        - Key: Name
+          Value: mydb
+
+  MyDB1:
+    DependsOn: MyDBCluster
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: mydb-1
+      DBClusterIdentifier: !Ref MyDBCluster
+      DBInstanceClass: db.t3.medium
+      Engine: aurora-mysql
+      EngineVersion: 8.0.mysql_aurora.3.10.3
+      AvailabilityZone: ap-northeast-2a
+      DBSubnetGroupName: !Ref MyDBSubnetGroup
+      AutoMinorVersionUpgrade: false
+
+  MyDB2:
+    DependsOn: MyDB1
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: mydb-2
+      DBClusterIdentifier: !Ref MyDBCluster
+      DBInstanceClass: db.t3.medium
+      Engine: aurora-mysql
+      EngineVersion: 8.0.mysql_aurora.3.10.3
+      AvailabilityZone: ap-northeast-2c
+      DBSubnetGroupName: !Ref MyDBSubnetGroup
+      AutoMinorVersionUpgrade: false

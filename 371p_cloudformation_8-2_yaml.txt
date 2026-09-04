@@ -1,0 +1,229 @@
+Parameters:
+  KeyName:
+    Description: EC2 KeyPair
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: EC2 KeyPair
+  LatestAmiId:
+    Description: EC2 AMI 
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+    AllowedValues:
+      - /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+Resources:
+  MyVPC05:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+        - Key: Name
+          Value: MyVPC05
+
+  MyIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: MyIGW
+
+  MyIGWattachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref MyIGW
+      VpcId: !Ref MyVPC05
+
+  MyPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: 10.0.1.0/24
+      VpcId: !Ref MyVPC05
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: MyPublicSubnet
+
+  MyPublicRouting:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC05
+      Tags:
+        - Key: Name
+          Value: MyPublicRouting
+
+  MyPublicRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref MyPublicRouting
+      SubnetId: !Ref MyPublicSubnet
+
+  MyPublicDefault:
+    DependsOn: MyIGWattachment
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref MyIGW
+      RouteTableId: !Ref MyPublicRouting
+
+  MyPublicSecugroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: MyPublicSecugroup
+      GroupDescription: Permit http,https,ssh and icmp
+      VpcId: !Ref MyVPC05
+      Tags:
+        - Key: Name
+          Value: MyPublicSecugroup
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+  MyWeb1:
+    DependsOn: MyIGWattachment
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: !Ref LatestAmiId
+      KeyName: !Ref KeyName
+      Tags:
+        - Key: Name
+          Value: MyWeb1
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          SubnetId: !Ref MyPublicSubnet
+          AssociatePublicIpAddress: true
+          PrivateIpAddress: 10.0.1.101
+          GroupSet:
+            - !Ref MyPublicSecugroup
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            hostnamectl --static set-hostname MyWeb1
+            echo "toor1234." | passwd --stdin root 
+            sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+            sed -i 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/g' /etc/ssh/sshd_config
+            systemctl restart sshd
+            yum install -y httpd
+            echo "<h1><p style="color:red">MyWeb1 test web page</p></h1>" > /var/www/html/index.html
+            systemctl enable --now httpd.service
+
+  MyNatGWEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  MyNatGW:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt MyNatGWEIP.AllocationId
+      SubnetId: !Ref MyPublicSubnet
+      Tags:
+        - Key: Name
+          Value: MyNatGW
+
+  MyPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: 10.0.100.0/24
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref MyVPC05
+      Tags:
+        - Key: Name
+          Value: MyPrivateSubnet
+
+  MyPrivateRouting:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC05
+      Tags:
+        - Key: Name
+          Value: MyPrivateRouting
+
+  MyPrivateRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref MyPrivateRouting
+      SubnetId: !Ref MyPrivateSubnet
+
+  MyPrivateDefault:
+    DependsOn: MyNatGW
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref MyNatGW
+      RouteTableId: !Ref MyPrivateRouting
+
+  MyPrivateSecugroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: MyPrivateSecugroup
+      GroupDescription: Permit http,https,ssh and icmp
+      VpcId: !Ref MyVPC05
+      Tags:
+        - Key: Name
+          Value: MyPrivateSecugroup
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+  MyWeb11:
+    DependsOn: MyNatGW
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: !Ref LatestAmiId
+      KeyName: !Ref KeyName
+      Tags:
+        - Key: Name
+          Value: MyWeb11
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          SubnetId: !Ref MyPrivateSubnet
+          AssociatePublicIpAddress: false
+          PrivateIpAddress: 10.0.100.101
+          GroupSet:
+            - !Ref MyPrivateSecugroup
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            hostnamectl --static set-hostname MyWeb11
+            echo "toor1234." | passwd --stdin root 
+            sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+            sed -i 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/g' /etc/ssh/sshd_config
+            systemctl restart sshd
+            yum install -y httpd
+            echo "<h1><p style="color:blue">MyWeb11 test web page</p></h1>" > /var/www/html/index.html
+            systemctl enable --now httpd.service
